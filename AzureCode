@@ -1,0 +1,224 @@
+"use strict";
+
+// Use the Azure IoT device SDK for devices that connect to Azure IoT Central.
+var iotHubTransport = require('azure-iot-device-mqtt').Mqtt;
+var Client = require('azure-iot-device').Client;
+var Message = require('azure-iot-device').Message;
+var ProvisioningTransport = require('azure-iot-provisioning-device-mqtt').Mqtt;
+var SymmetricKeySecurityClient = require('azure-iot-security-symmetric-key').SymmetricKeySecurityClient;
+var ProvisioningDeviceClient = require('azure-iot-provisioning-device').ProvisioningDeviceClient;
+
+var provisioningHost = 'global.azure-devices-provisioning.net';
+var idScope = '0ne003EA85C';
+var registrationId = '21x86bofu97';
+var symmetricKey = 'goDj6Ql+jlOzE0jRv9fqwbv+kgJ0eNY0ETFJwRCCFJI=';
+var provisioningSecurityClient = new SymmetricKeySecurityClient(registrationId, symmetricKey);
+var provisioningClient = ProvisioningDeviceClient.create(provisioningHost, idScope, new ProvisioningTransport(), provisioningSecurityClient);
+var centralClient;
+
+// Global variables
+
+
+var ledState1 = 'detected';
+var ledState2 = 'detected';
+var ledState3 = 'detected';
+var ledState4 = 'detected';
+var ledState5 = 'detected';
+var maintenanceState = false;
+
+const lightdata = { 
+    led1:{
+         id: 0, 
+         name: "Light", 
+         address: "221 Burwood Hwy, Burwood VIC 3125", 
+         time: Date.now(), 
+         
+         
+     
+     },
+ 
+     led2 :{ 
+         id: 1, 
+         name: "Light", 
+         address: "221 Burwood Hwy, Burwood VIC 3125", 
+         time: Date.now(), 
+         
+ 
+     },
+     
+     led3 :{ 
+         id: 2, 
+         name: "Light", 
+         address: "221 Burwood Hwy, Burwood VIC 3125", 
+         time: Date.now(), 
+         
+ 
+     },
+     
+     led4 : { 
+         id: 3, 
+         name: "Light", 
+         address: "221 Burwood Hwy, Burwood VIC 3125", 
+         time: Date.now(), 
+         
+ 
+     },
+     
+     led5 :{ 
+         id: 4, 
+         name: "Light", 
+         address: "221 Burwood Hwy, Burwood VIC 3125", 
+         time: Date.now(), 
+         
+         
+     }
+ } 
+
+// Helper function to produce nice numbers (##.#)
+
+
+
+// Send device simulated telemetry measurements
+function sendTelemetry() 
+{	
+    ledState1 = Math.random() < 0.5?'detected':'notdetected';
+    ledState2 = Math.random() < 0.5?'detected':'notdetected';
+    ledState3 = Math.random() < 0.5?'detected':'notdetected';
+    ledState4 = Math.random() < 0.5?'detected':'notdetected';
+    ledState5 = Math.random() < 0.5?'detected':'notdetected';
+    // Create the data JSON package
+    var data = JSON.stringify(
+        { 
+            
+            Light1Detected: ledState1,
+            Light2Detected: ledState2,
+            Light3Detected: ledState3,
+            Light4Detected: ledState4,
+            Light5Detected: ledState5,
+           
+        });
+
+    const jsonString = JSON.stringify(lightdata);
+    console.log(jsonString)
+
+    // Create the message with the above defined data
+    var message = new Message(data);
+
+    // Set the state flags
+    //message.properties.add('CupDetected2', cupState);
+    //message.properties.add('Brewing', brewingState);
+
+    // Show the information in console
+    var infoLight = lightdata;
+    
+
+    console.log('Telemetry send: Led info: ' + infoLight);
+    console.log('Telemetry send: Led 1 status: ' + ledState1);
+    console.log('Telemetry send: Led 2 status: ' + ledState2);
+    console.log('Telemetry send: Led 3 status: ' + ledState3);
+    console.log('Telemetry send: Led 4 status: ' + ledState4);
+    console.log('Telemetry send: Led 5 status: ' + ledState5);
+                
+
+    // Send the message
+    centralClient.sendEvent(message, function (errorMessage) 
+    {
+        // Error
+        if (errorMessage) 
+        {
+            console.log('Failed to send message to Azure IoT Hub: ${err.toString()}');
+        }
+    });
+}
+
+// Send device properties
+
+
+
+
+// Handle settings changes that come from Azure IoT Central via the device twin.
+
+
+// Maintenance mode command
+function onCommandMaintenance(request, response) 
+{
+    // Display console info
+    console.log(' * Maintenance command received');
+
+    // Console warning
+    if (maintenanceState)
+    {
+        console.log(' - Warning: The device is already in the maintenance mode.');
+    }
+
+    // Set state
+    maintenanceState = true;
+
+    // Respond
+    response.send(200, 'Success', function (errorMessage) 
+    {
+        // Failure
+        if (errorMessage) 
+        {
+            console.error('[IoT hub Client] Failed sending a method response:\n' + errorMessage.message);
+        }
+    });
+}
+
+
+
+// Handle device connection to Azure IoT Central
+var connectCallback = (errorMessage) => 
+{
+    // Connection error
+    if (errorMessage) 
+    {
+        console.log(`Device could not connect to Azure IoT Central: ${errorMessage.toString()}`);
+    } 
+    // Successfully connected
+    else 
+    {
+        // Notify the user
+        console.log('Device successfully connected to Azure IoT Central');
+
+        // Send telemetry measurements to Azure IoT Central every 1 second.
+        setInterval(sendTelemetry, 1000);
+
+
+        // Get device twin from Azure IoT Central
+        centralClient.getTwin((errorMessage, deviceTwin) => 
+        {
+            // Failed to retrieve device twin
+            if (errorMessage) 
+            {
+                console.log(`Error getting device twin: ${errorMessage.toString()}`);
+            } 
+            // Success
+            else 
+            {
+                // Notify the user
+                console.log('Device Twin successfully retrieved from Azure IoT Central');
+
+                // Send device properties once on device startup
+               
+
+                // Apply device settings and handle changes to device setting
+            }
+        });
+    }
+};
+
+// Start the device (register and connect to Azure IoT Central).
+provisioningClient.register((err, result) => {
+  if (err) {
+    console.log('Error registering device: ' + err);
+  } else {
+    console.log('Registration succeeded');
+    console.log('Assigned hub=' + result.assignedHub);
+    console.log('DeviceId=' + result.deviceId);
+    var connectionString = 'HostName=' + result.assignedHub + ';DeviceId=' + result.deviceId + ';SharedAccessKey=' + symmetricKey;
+    centralClient = Client.fromConnectionString(connectionString, iotHubTransport);
+
+    centralClient.open(connectCallback);
+  }
+});
